@@ -1,0 +1,11 @@
+{
+  "name": "FREEFLIX 1.0",
+  "short_name": "Freeflix",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#00F2FF",
+  "icons": [
+    { "src": "https://i.ibb.co/4P2p8zX/freeflix-icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

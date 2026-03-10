@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FREEFLIX 1.0 | Premium Streaming</title>
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-[#050505] text-white no-scrollbar">
+
+    <div id="splash" class="fixed inset-0 bg-[#050505] z-[1000] flex items-center justify-center transition-opacity duration-1000">
+        <h1 class="text-4xl font-black text-[#00F2FF] italic neon-glow animate-pulse uppercase">Freeflix 1.0</h1>
+    </div>
+
+    <nav class="p-4 border-b border-white/5 flex justify-between items-center sticky top-0 bg-[#050505]/95 backdrop-blur-xl z-50">
+        <h1 class="text-2xl font-black text-[#00F2FF] italic tracking-tighter neon-glow">FREEFLIX 1.0</h1>
+        <div class="flex items-center gap-4">
+            <button onclick="showShareQR()" class="bg-white/5 p-2 rounded-full text-lg">📲</button>
+            <div id="admin-status" class="text-[8px] uppercase tracking-widest opacity-30 font-bold hidden md:block">Secure Line</div>
+        </div>
+    </nav>
+
+    <div class="sticky top-[73px] z-40 bg-[#050505]">
+        <div class="p-4">
+            <input type="text" id="live-search" oninput="searchMovies()" placeholder="Search movies, series, anime..." 
+                   class="w-full bg-white/5 border border-white/10 py-3 px-6 rounded-full text-sm focus:border-[#00F2FF] transition-all outline-none">
+        </div>
+        <div class="px-4 pb-4 flex gap-2 overflow-x-auto no-scrollbar">
+            <button onclick="filterCat('All')" class="category-btn active-cat">ALL</button>
+            <button onclick="filterCat('Series')" class="category-btn">SERIES</button>
+            <button onclick="filterCat('Nollywood')" class="category-btn">NOLLYWOOD</button>
+            <button onclick="filterCat('Salone')" class="category-btn">SALONE</button>
+            <button onclick="filterCat('Anime')" class="category-btn">ANIME</button>
+            <button onclick="filterCat('Games')" class="category-btn">GAMES</button>
+        </div>
+    </div>
+
+    <div id="admin-panel" class="hidden p-6 bg-[#00F2FF]/5 border-y border-[#00F2FF]/20">
+        <div class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-5 gap-3">
+            <input id="up-title" placeholder="Title">
+            <input id="up-dropbox" placeholder="URL (Comma for Series)">
+            <input id="up-poster" placeholder="Poster URL">
+            <select id="up-category" class="bg-[#111] text-white p-3 rounded-xl border border-white/10">
+                <option value="Movies">Movies</option>
+                <option value="Series">Series</option>
+                <option value="Nollywood">Nollywood</option>
+                <option value="Salone">Salone</option>
+                <option value="Anime">Anime</option>
+                <option value="Games">Games</option>
+            </select>
+            <button onclick="uploadMovie()" class="bg-[#00F2FF] text-black font-bold rounded-xl py-3 uppercase text-xs">Publish</button>
+        </div>
+    </div>
+
+    <main class="p-4"><div id="movie-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4"></div></main>
+
+    <div id="player-overlay" class="hidden fixed inset-0 bg-black z-[200] overflow-y-auto">
+        <button onclick="closePlayer()" class="p-6 text-[#00F2FF] font-bold">← BACK</button>
+        <div class="max-w-5xl mx-auto p-4">
+            <div id="player-container" class="aspect-video bg-black rounded-2xl overflow-hidden border border-white/10 shadow-2xl"></div>
+            <h2 id="playing-title" class="text-3xl font-black mt-6 uppercase italic"></h2>
+            <div id="episode-list" class="mt-6"></div>
+            <p class="text-[#00F2FF] text-[9px] font-bold mt-8 tracking-[0.3em] opacity-40 uppercase">Encrypted Content Delivery</p>
+        </div>
+    </div>
+
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black/95 z-[500] flex items-center justify-center p-6">
+        <div class="bg-[#111] p-8 rounded-3xl border border-[#00F2FF]/30 w-full max-w-md">
+            <h3 class="text-[#00F2FF] font-black mb-6 uppercase text-center">Update Content</h3>
+            <div class="flex flex-col gap-4">
+                <input id="edit-title" placeholder="Title">
+                <input id="edit-dropbox" placeholder="Stream URL">
+                <input id="edit-poster" placeholder="Poster URL">
+                <select id="edit-category" class="bg-[#222] text-white p-3 rounded-xl border border-white/10">
+                    <option value="Movies">Movies</option>
+                    <option value="Series">Series</option>
+                    <option value="Nollywood">Nollywood</option>
+                    <option value="Salone">Salone</option>
+                    <option value="Anime">Anime</option>
+                </select>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="saveEdit()" class="flex-1 bg-[#00F2FF] text-black font-bold py-3 rounded-xl text-xs uppercase">Save</button>
+                    <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="px-6 bg-white/10 rounded-xl text-xs uppercase">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="qr-modal" class="hidden fixed inset-0 bg-black/95 z-[300] flex items-center justify-center p-6">
+        <div class="text-center">
+            <div id="qr-container" class="bg-white p-4 rounded-xl mb-4 mx-auto w-max"></div>
+            <p class="text-[#00F2FF] font-bold text-xs uppercase mb-4 tracking-widest">Install App</p>
+            <button onclick="document.getElementById('qr-modal').classList.add('hidden')" class="text-white/50 underline text-xs">Close</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

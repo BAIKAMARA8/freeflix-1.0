@@ -1,3 +1,4 @@
+// FREEFLIX 1.0 - OFFICIAL PRODUCTION SCRIPT
 const SUPABASE_URL = 'https://nferraozvfggyxlbsppo.supabase.co'; 
 const SUPABASE_KEY = 'sb_publishable_WJYQ97C8H1FfVEkCqWlIcQ_ntuQO3Us';
 const TMDB_KEY = '729792fe9a5158a25c636273a292acd3';
@@ -5,11 +6,12 @@ const ADMIN_PASS = "232";
 
 const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 let allMovies = [];
 let isAdmin = false;
 let editingId = null;
 
-// ADMIN TOGGLE
+// --- 1. ADMIN SYSTEM ---
 window.addEventListener('keydown', (e) => {
     if (e.shiftKey && e.key.toLowerCase() === 'a') {
         if (prompt("ADMIN CODE:") === ADMIN_PASS) {
@@ -21,29 +23,58 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// STARTUP
+// --- 2. STARTUP LOGIC (UPGRADED) ---
 async function init() {
-    setTimeout(() => { document.getElementById('splash')?.remove(); }, 1200);
+    // Hide splash screen
+    setTimeout(() => { 
+        const splash = document.getElementById('splash');
+        if (splash) splash.style.display = 'none'; 
+    }, 1200);
+
     try {
-        const [dbRes, tmdbRes] = await Promise.all([
-            _supabase.from('movies').select('*').order('created_at', {ascending: false}),
-            fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}`).then(r => r.json())
-        ]);
-        const tmdbFormatted = tmdbRes.results.map(m => ({
-            title: m.title, 
-            poster_url: `https://image.tmdb.org/t/p/w500${m.poster_path}`,
-            dropbox_url: null, 
-            category: 'Trending', 
-            id: m.id
-        }));
-        allMovies = [...(dbRes.data || []), ...tmdbFormatted];
+        // Fetch your Supabase Dashboard Movies first
+        const { data: dbData, error: dbError } = await _supabase
+            .from('movies')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (dbError) console.error("Database Error:", dbError.message);
+        
+        allMovies = dbData || [];
+
+        // Try to fetch Trending movies, but don't stop if it fails
+        try {
+            const tmdbRes = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}`).then(r => r.json());
+            if (tmdbRes.results) {
+                const tmdbFormatted = tmdbRes.results.map(m => ({
+                    title: m.title, 
+                    poster_url: `https://image.tmdb.org/t/p/w500${m.poster_path}`,
+                    dropbox_url: null, 
+                    category: 'Trending', 
+                    id: m.id
+                }));
+                allMovies = [...allMovies, ...tmdbFormatted];
+            }
+        } catch (e) {
+            console.log("TMDB trends unavailable.");
+        }
+
         renderGrid(allMovies);
-    } catch (err) { console.error(err); }
+    } catch (err) {
+        console.error("Critical Init Error:", err);
+    }
 }
 
-// RENDER
+// --- 3. RENDERING SYSTEM ---
 function renderGrid(movies) {
     const grid = document.getElementById('movie-grid');
+    if (!grid) return;
+    
+    if (movies.length === 0) {
+        grid.innerHTML = `<p class="text-white/50 text-center col-span-full py-10">No movies found in your dashboard.</p>`;
+        return;
+    }
+
     grid.innerHTML = movies.map(m => {
         const isTMDB = !m.dropbox_url;
         const mString = JSON.stringify(m).replace(/'/g, "&apos;");
@@ -69,7 +100,7 @@ function renderGrid(movies) {
     `}).join('');
 }
 
-// PLAYER (With Referrer Fix)
+// --- 4. PLAYER SYSTEM ---
 async function openMedia(m) {
     const epList = document.getElementById('episode-list');
     document.getElementById('playing-title').innerText = m.title;
@@ -89,44 +120,25 @@ async function openMedia(m) {
 async function playSource(url, id) {
     const container = document.getElementById('player-container');
     if (url) {
-        container.innerHTML = `<video controls autoplay class="w-full h-full"><source src="${url.replace('dl=0', 'raw=1')}" type="video/mp4"></video>`;
+        const playableUrl = url.replace('dl=0', 'raw=1');
+        container.innerHTML = `<video controls autoplay class="w-full h-full"><source src="${playableUrl}" type="video/mp4"></video>`;
     } else {
         const res = await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}`).then(r => r.json());
-        const key = res.results.find(v => v.site === "YouTube")?.key;
-        container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1" class="w-full h-full" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        const key = res.results?.find(v => v.site === "YouTube")?.key;
+        if (key) {
+            container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1" class="w-full h-full" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+        } else {
+            container.innerHTML = `<p class="text-white text-center p-10">Trailer not available.</p>`;
+        }
     }
 }
 
-// ACTIONS
+// --- 5. ADMIN ACTIONS ---
 function importTMDB(m) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     document.getElementById('up-title').value = m.title;
     document.getElementById('up-poster').value = m.poster_url;
     document.getElementById('up-dropbox').focus();
-}
-
-function openEditModal(m) {
-    editingId = m.id;
-    document.getElementById('edit-title').value = m.title;
-    document.getElementById('edit-dropbox').value = m.dropbox_url;
-    document.getElementById('edit-poster').value = m.poster_url;
-    document.getElementById('edit-category').value = m.category;
-    document.getElementById('edit-modal').classList.remove('hidden');
-}
-
-async function saveEdit() {
-    const data = {
-        title: document.getElementById('edit-title').value,
-        dropbox_url: document.getElementById('edit-dropbox').value.replace('dl=0', 'raw=1'),
-        poster_url: document.getElementById('edit-poster').value,
-        category: document.getElementById('edit-category').value
-    };
-    await _supabase.from('movies').update(data).eq('id', editingId);
-    location.reload();
-}
-
-async function deleteMedia(id) {
-    if(confirm("Delete forever?")) { await _supabase.from('movies').delete().eq('id', id); location.reload(); }
 }
 
 async function uploadMovie() {
@@ -135,15 +147,28 @@ async function uploadMovie() {
     const rawUrl = document.getElementById('up-dropbox').value;
     const poster = document.getElementById('up-poster').value;
 
+    if(!title || !rawUrl) return alert("Please fill Title and Link");
+
     let payload = { title, category: cat, poster_url: poster };
+    
     if (cat === 'Series') {
         const epArray = rawUrl.split(',').map(l => l.trim().replace('dl=0', 'raw=1'));
         payload.episodes = epArray;
         payload.dropbox_url = epArray[0];
-    } else { payload.dropbox_url = rawUrl.replace('dl=0', 'raw=1'); }
+    } else { 
+        payload.dropbox_url = rawUrl.replace('dl=0', 'raw=1'); 
+    }
 
-    await _supabase.from('movies').insert([payload]);
-    location.reload();
+    const { error } = await _supabase.from('movies').insert([payload]);
+    if (error) alert("Error: " + error.message);
+    else location.reload();
+}
+
+async function deleteMedia(id) {
+    if(confirm("Delete forever?")) { 
+        await _supabase.from('movies').delete().eq('id', id); 
+        location.reload(); 
+    }
 }
 
 function searchMovies() {
@@ -157,11 +182,10 @@ function filterCat(cat) {
     renderGrid(cat === 'All' ? allMovies : allMovies.filter(m => m.category === cat));
 }
 
-function showShareQR() {
-    document.getElementById('qr-container').innerHTML = "";
-    new QRCode(document.getElementById('qr-container'), { text: window.location.href, width: 140, height: 140 });
-    document.getElementById('qr-modal').classList.remove('hidden');
+function closePlayer() { 
+    document.getElementById('player-overlay').classList.add('hidden'); 
+    document.getElementById('player-container').innerHTML = ''; 
 }
 
-function closePlayer() { document.getElementById('player-overlay').classList.add('hidden'); document.getElementById('player-container').innerHTML = ''; }
+// Run the app
 init();

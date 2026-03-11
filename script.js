@@ -1,9 +1,12 @@
-// FREEFLIX 1.0 - OFFICIAL PRODUCTION SCRIPT
-const SUPABASE_URL = 'https://nferraozvfggyxlbsppo.supabase.co'; 
-const SUPABASE_KEY = 'sb_publishable_WJYQ97C8H1FfVEkCqWlIcQ_ntuQO3Us';
-const TMDB_KEY = '729792fe9a5158a25c636273a292acd3';
+// FREEFLIX 1.0 - FINAL PRODUCTION CODE
+// This version includes auto-trimming to prevent "Failed to Fetch" errors.
+
+const SUPABASE_URL = 'https://nferraozvfggyxlbsppo.supabase.co'.trim(); 
+const SUPABASE_KEY = 'sb_publishable_WJYQ97C8H1FfVEkCqWlIcQ_ntuQO3Us'.trim();
+const TMDB_KEY = '729792fe9a5158a25c636273a292acd3'.trim();
 const ADMIN_PASS = "232";
 
+// Initialize Supabase
 const { createClient } = supabase;
 const _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -14,7 +17,8 @@ let editingId = null;
 // --- 1. ADMIN SYSTEM ---
 window.addEventListener('keydown', (e) => {
     if (e.shiftKey && e.key.toLowerCase() === 'a') {
-        if (prompt("ADMIN CODE:") === ADMIN_PASS) {
+        const pass = prompt("ADMIN CODE:");
+        if (pass === ADMIN_PASS) {
             isAdmin = !isAdmin;
             document.getElementById('admin-panel').classList.toggle('hidden');
             document.getElementById('admin-status').innerText = isAdmin ? "ADMINISTRATOR" : "SECURE LINE";
@@ -23,26 +27,28 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-// --- 2. STARTUP LOGIC (UPGRADED) ---
+// --- 2. STARTUP LOGIC ---
 async function init() {
-    // Hide splash screen
+    // Splash screen timer
     setTimeout(() => { 
         const splash = document.getElementById('splash');
         if (splash) splash.style.display = 'none'; 
     }, 1200);
 
     try {
-        // Fetch your Supabase Dashboard Movies first
+        // Fetch Dashboard Movies from your Supabase
         const { data: dbData, error: dbError } = await _supabase
             .from('movies')
             .select('*')
             .order('created_at', { ascending: false });
 
-        if (dbError) console.error("Database Error:", dbError.message);
+        if (dbError) {
+            console.error("Database Connection Error:", dbError.message);
+        }
         
         allMovies = dbData || [];
 
-        // Try to fetch Trending movies, but don't stop if it fails
+        // Fetch Trending (Non-blocking)
         try {
             const tmdbRes = await fetch(`https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_KEY}`).then(r => r.json());
             if (tmdbRes.results) {
@@ -56,22 +62,22 @@ async function init() {
                 allMovies = [...allMovies, ...tmdbFormatted];
             }
         } catch (e) {
-            console.log("TMDB trends unavailable.");
+            console.warn("TMDB Trends currently unavailable.");
         }
 
         renderGrid(allMovies);
     } catch (err) {
-        console.error("Critical Init Error:", err);
+        console.error("System Init Error:", err);
     }
 }
 
-// --- 3. RENDERING SYSTEM ---
+// --- 3. RENDERING ---
 function renderGrid(movies) {
     const grid = document.getElementById('movie-grid');
     if (!grid) return;
     
     if (movies.length === 0) {
-        grid.innerHTML = `<p class="text-white/50 text-center col-span-full py-10">No movies found in your dashboard.</p>`;
+        grid.innerHTML = `<div class="col-span-full py-20 text-center"><p class="text-white/40 italic">No movies found in your dashboard yet.</p></div>`;
         return;
     }
 
@@ -79,20 +85,20 @@ function renderGrid(movies) {
         const isTMDB = !m.dropbox_url;
         const mString = JSON.stringify(m).replace(/'/g, "&apos;");
         return `
-        <div class="relative group rounded-xl overflow-hidden border border-white/5 bg-[#111] hover:border-[#00F2FF]/50 transition-all">
+        <div class="relative group rounded-xl overflow-hidden border border-white/5 bg-[#111] hover:border-[#00F2FF]/50 transition-all duration-300">
             <div onclick='openMedia(${mString})' class="cursor-pointer">
-                <img src="${m.poster_url}" loading="lazy" class="w-full aspect-[2/3] object-cover opacity-80 group-hover:opacity-100">
-                <div class="absolute inset-0 bg-gradient-to-t from-black p-3 flex flex-col justify-end">
-                    <p class="text-[7px] text-[#00F2FF] font-bold uppercase tracking-widest">${m.category || 'Global'}</p>
+                <img src="${m.poster_url}" loading="lazy" class="w-full aspect-[2/3] object-cover opacity-80 group-hover:opacity-100 transition-opacity">
+                <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 p-3 flex flex-col justify-end">
+                    <p class="text-[7px] text-[#00F2FF] font-bold uppercase tracking-widest">${m.category || 'Movie'}</p>
                     <h4 class="font-bold text-[10px] uppercase truncate">${m.title}</h4>
                 </div>
             </div>
             ${isAdmin ? `
                 <div class="absolute top-2 right-2 flex gap-1 z-20">
                     ${isTMDB ? 
-                        `<button onclick='importTMDB(${mString})' class="bg-green-600 p-1.5 rounded-lg text-[10px]">📥</button>` : 
-                        `<button onclick='openEditModal(${mString})' class="bg-blue-600 p-1.5 rounded-lg text-[10px]">✎</button>
-                         <button onclick='deleteMedia(${m.id})' class="bg-red-600 p-1.5 rounded-lg text-[10px]">✕</button>`
+                        `<button onclick='importTMDB(${mString})' class="bg-green-600 hover:bg-green-500 p-1.5 rounded-lg text-[10px] shadow-lg">📥</button>` : 
+                        `<button onclick='openEditModal(${mString})' class="bg-blue-600 hover:bg-blue-500 p-1.5 rounded-lg text-[10px] shadow-lg">✎</button>
+                         <button onclick='deleteMedia(${m.id})' class="bg-red-600 hover:bg-red-500 p-1.5 rounded-lg text-[10px] shadow-lg">✕</button>`
                     }
                 </div>
             ` : ''}
@@ -100,11 +106,12 @@ function renderGrid(movies) {
     `}).join('');
 }
 
-// --- 4. PLAYER SYSTEM ---
+// --- 4. PLAYER ---
 async function openMedia(m) {
     const epList = document.getElementById('episode-list');
+    const playerOverlay = document.getElementById('player-overlay');
     document.getElementById('playing-title').innerText = m.title;
-    document.getElementById('player-overlay').classList.remove('hidden');
+    playerOverlay.classList.remove('hidden');
     epList.innerHTML = '';
 
     if (m.category === 'Series' && m.episodes) {
@@ -121,24 +128,30 @@ async function playSource(url, id) {
     const container = document.getElementById('player-container');
     if (url) {
         const playableUrl = url.replace('dl=0', 'raw=1');
-        container.innerHTML = `<video controls autoplay class="w-full h-full"><source src="${playableUrl}" type="video/mp4"></video>`;
+        container.innerHTML = `<video controls autoplay class="w-full h-full rounded-lg bg-black"><source src="${playableUrl}" type="video/mp4"></video>`;
     } else {
-        const res = await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}`).then(r => r.json());
-        const key = res.results?.find(v => v.site === "YouTube")?.key;
-        if (key) {
-            container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1" class="w-full h-full" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
-        } else {
-            container.innerHTML = `<p class="text-white text-center p-10">Trailer not available.</p>`;
+        // Fallback to TMDB Trailer
+        try {
+            const res = await fetch(`https://api.themoviedb.org/3/movie/${id}/videos?api_key=${TMDB_KEY}`).then(r => r.json());
+            const key = res.results?.find(v => v.site === "YouTube")?.key;
+            if (key) {
+                container.innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1" class="w-full h-full rounded-lg" frameborder="0" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+            } else {
+                container.innerHTML = `<div class="flex items-center justify-center h-full text-white/50">Trailer not found for this title.</div>`;
+            }
+        } catch (e) {
+            container.innerHTML = `<div class="flex items-center justify-center h-full text-white/50">Error loading source.</div>`;
         }
     }
 }
 
-// --- 5. ADMIN ACTIONS ---
+// --- 5. ACTIONS ---
 function importTMDB(m) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     document.getElementById('up-title').value = m.title;
     document.getElementById('up-poster').value = m.poster_url;
     document.getElementById('up-dropbox').focus();
+    alert("Details imported! Now paste the Dropbox Link to publish.");
 }
 
 async function uploadMovie() {
@@ -147,7 +160,7 @@ async function uploadMovie() {
     const rawUrl = document.getElementById('up-dropbox').value;
     const poster = document.getElementById('up-poster').value;
 
-    if(!title || !rawUrl) return alert("Please fill Title and Link");
+    if(!title || !rawUrl) return alert("Please provide at least a Title and a Link.");
 
     let payload = { title, category: cat, poster_url: poster };
     
@@ -159,13 +172,18 @@ async function uploadMovie() {
         payload.dropbox_url = rawUrl.replace('dl=0', 'raw=1'); 
     }
 
-    const { error } = await _supabase.from('movies').insert([payload]);
-    if (error) alert("Error: " + error.message);
-    else location.reload();
+    try {
+        const { error } = await _supabase.from('movies').insert([payload]);
+        if (error) throw error;
+        location.reload();
+    } catch (err) {
+        alert("Upload Failed: " + err.message);
+        console.error("Upload detail:", err);
+    }
 }
 
 async function deleteMedia(id) {
-    if(confirm("Delete forever?")) { 
+    if(confirm("Are you sure you want to delete this?")) { 
         await _supabase.from('movies').delete().eq('id', id); 
         location.reload(); 
     }
@@ -173,7 +191,8 @@ async function deleteMedia(id) {
 
 function searchMovies() {
     const term = document.getElementById('live-search').value.toLowerCase();
-    renderGrid(allMovies.filter(m => m.title.toLowerCase().includes(term)));
+    const filtered = allMovies.filter(m => m.title.toLowerCase().includes(term));
+    renderGrid(filtered);
 }
 
 function filterCat(cat) {
@@ -187,5 +206,5 @@ function closePlayer() {
     document.getElementById('player-container').innerHTML = ''; 
 }
 
-// Run the app
+// Launch
 init();

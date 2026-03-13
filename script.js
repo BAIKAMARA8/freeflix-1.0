@@ -1,6 +1,6 @@
 // FREEFLIX 1.0 - OFFICIAL PRODUCTION SCRIPT
-const SUPABASE_URL = 'https://nferraozvgfgglxbsppo.supabase.co'.trim(); 
-const SUPABASE_KEY = 'sb_secret_Gw2gqVc6tyWWcIEtOOpldg_oWQIfUX6
+const SUPABASE_URL = 'sb_publishable_WJYQ97C8H1FfVEkCqWlIcQ_ntuQO3Us'.trim(); 
+const SUPABASE_KEY = 'https://nferraozvfggyxlbsppo.supabase.co
 '.trim();
 const OMDB_KEY = 'b5941be8'.trim(); // Your active OMDb Key
 const ADMIN_PASS = "232";
